@@ -21,6 +21,22 @@ const eCards = {
   discard: "ePileB",
 };
 
+const VAL = {
+  ACE: 1,
+  2: 2,
+  3: 3,
+  4: 4,
+  5: 5,
+  6: 6,
+  7: 7,
+  8: 8,
+  9: 9,
+  10: 10,
+  JACK: 11,
+  QUEEN: 12,
+  KING: 13,
+};
+
 function App() {
   const [deckId, setDeckId] = useState("");
   const [playerCards, setPlayerCards] = useState(pCards);
@@ -29,6 +45,7 @@ function App() {
   const [hasWon, setHasWon] = useState("pending");
   const [error, setError] = useState("");
   async function setupNewGame() {
+    setError("");
     const deckId = await deal(playerCards.hand, enemyCards.hand);
     setDeckId(deckId);
   }
@@ -46,6 +63,7 @@ function App() {
         return [];
       }
       let dDiscard = await getCard(deckId, cards.discard, count - drawn.length);
+      setter({ hand: cards.discard, discard: cards.hand });
       if (dDiscard === undefined || dDiscard.length + drawn.length < count) {
         if (cards.hand[0] === "e") setHasWon("Won");
         if (cards.hand[0] === "p") setHasWon("Lost");
@@ -74,9 +92,9 @@ function App() {
 
   async function resolve() {
     const l = field[0].length - 1;
-    if (field[0][l].value > field[1][l].value) {
+    if (VAL[field[0][l].value] > VAL[field[1][l].value]) {
       claimCards(playerCards.discard, field);
-    } else if (field[0][l].value < field[1][l].value) {
+    } else if (VAL[field[0][l].value] < VAL[field[1][l].value]) {
       claimCards(enemyCards.discard, field);
     } else if (
       field[0][l].value === field[1][l].value &&
@@ -86,42 +104,47 @@ function App() {
     }
   }
 
-  console.log("OKAY HERE WE GO!");
-  console.log(playerCards.hand);
-  console.log(enemyCards.hand);
-
-  async function swapPiles(setter, cards) {
-    const remaining = await shuffle(deckId, cards.discard);
-    setter({ ...cards, hand: cards.discard, discard: cards.hand });
-    console.log("REMAINING IS " + remaining);
-    if (remaining === 0) {
-      // this will explode horribly if
-      // the default pile names are changed
-      return "halt";
-    }
-  }
-
-  if (hasWon !== "pending") {
-    return <h1>You {hasWon}!</h1>;
-  }
   if (error !== "") {
-    return <h1>{error}</h1>;
+    return (
+      <div className="App">
+        <h1>{error}</h1>
+        <button onClick={setupNewGame}>Start New Game</button>
+      </div>
+    );
   }
 
   return (
     <div className="App">
       <h1>Lets Play War!</h1>
       <p>{deckId}</p>
-      {field[0].map((c) => (
-        <span key={c.code}>{c.code}</span>
-      ))}
+      {hasWon !== "pending" && <h2>You {hasWon}!</h2>}
+      {hasWon === "pending" && (
+        <div className="Field">
+          {field[1].map((c, i) => {
+            if (i % 4 == 0) {
+              return <img key={c.code} alt={c.code} src={c.image} />;
+            } else {
+              return <img key={c.code} alt={"hidden card"} src={"back.png"} />;
+            }
+          })}
+          <br />
+          {field[0].map((c, i) => {
+            if (i % 4 == 0) {
+              return <img key={c.code} alt={c.code} src={c.image} />;
+            } else {
+              return <img key={c.code} alt={"hidden card"} src={"back.png"} />;
+            }
+          })}
+        </div>
+      )}
       <br />
-      {field[1].map((c) => (
-        <span key={c.code}>{c.code}</span>
-      ))}
-      <button onClick={() => setupNewGame()}>New Game</button>
-      <button onClick={() => war(1)}>war!</button>
-      <button onClick={() => resolve()}>resolve</button>
+      {deckId == "" && <button onClick={() => setupNewGame()}>New Game</button>}
+      {field[0].length === 0 && deckId != "" && (
+        <button onClick={() => war(1)}>war!</button>
+      )}
+      {field[0].length !== 0 && (
+        <button onClick={() => resolve()}>resolve</button>
+      )}
     </div>
   );
 }
