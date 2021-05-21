@@ -6,7 +6,7 @@ export function deal(playerHand, enemyHand) {
     axios
       // I feel like this should be a post, but it fails
       // with an awkward error in that case
-      .get(`https://deckofcardsapi.com/api/deck/new/draw/?count=2`)
+      .get(`https://deckofcardsapi.com/api/deck/new/draw/?count=6`)
       .then((res) => {
         if (res.data.success === true) {
           res.data.cards.forEach((card, idx) => {
@@ -32,10 +32,15 @@ export function shuffle(deckId, hand) {
   return axios
     .get(`https://deckofcardsapi.com/api/deck/${deckId}/pile/${hand}/shuffle/`)
     .then((res) => {
-      console.log("remaining cards after shuffle" + res.data.remaining);
+      console.log(
+        "remaining cards after shuffle" + res.data.piles[hand].remaining
+      );
       return res.data.piles[hand].remaining;
     })
-    .catch((error) => console.error(error));
+    .catch((error) => {
+      console.error(error);
+      return 0;
+    });
 }
 
 export function getCard(deckId, hand, count) {
@@ -43,14 +48,14 @@ export function getCard(deckId, hand, count) {
     .get(
       `https://deckofcardsapi.com/api/deck/${deckId}/pile/${hand}/draw/?count=${count}`
     )
-    .then((res) => res.data.cards[0])
+    .then((res) => res.data.cards)
     .catch((error) => {
       // if the pile is empty
       // server throws 404
       // but also tells us there are no
       // cards to draw
       if (error.response.data.success === false) {
-        return {};
+        return [];
       } else {
         console.error(error);
       }
