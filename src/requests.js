@@ -2,30 +2,26 @@ import axios from "axios";
 
 export function deal(playerHand, enemyHand) {
   let tmpDrawn = [[], []];
-  return (
-    axios
-      // I feel like this should be a post, but it fails
-      // with an awkward error in that case
-      .get(`https://deckofcardsapi.com/api/deck/new/draw/?count=52`)
-      .then((res) => {
-        if (res.data.success === true) {
-          res.data.cards.forEach((card, idx) => {
-            tmpDrawn[idx % 2].push(card.code);
-          });
-          if (
-            addCards(res.data.deck_id, playerHand, tmpDrawn[0]) &&
-            addCards(res.data.deck_id, enemyHand, tmpDrawn[1])
-          ) {
-            return res.data.deck_id;
-          } else {
-            return "Error: server failed to create hands";
-          }
+  return axios
+    .get(`https://deckofcardsapi.com/api/deck/new/draw/?count=52`)
+    .then((res) => {
+      if (res.data.success === true) {
+        res.data.cards.forEach((card, idx) => {
+          tmpDrawn[idx % 2].push(card.code);
+        });
+        if (
+          addCards(res.data.deck_id, playerHand, tmpDrawn[0]) &&
+          addCards(res.data.deck_id, enemyHand, tmpDrawn[1])
+        ) {
+          return res.data.deck_id;
         } else {
-          return "Error: server failed to draw cards";
+          return "Error: server failed to create hands";
         }
-      })
-      .catch((error) => console.error(error))
-  );
+      } else {
+        return "Error: server failed to draw cards";
+      }
+    })
+    .catch((error) => console.error(error));
 }
 
 export function shuffle(deckId, hand) {

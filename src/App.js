@@ -3,15 +3,9 @@ import { useState } from "react";
 import "./App.css";
 import { deal, getCard, shuffle, addCards } from "./requests";
 
-// The field is mostly going to be just a single card on each side
-// but it's also going to have tieBreakers
-// where 3 cards are played hidden, and a fourth flipped
-// repeating as necessary (I had some pretty long ties in the past)
-// this _could_ hypothetically result in a tie
-// but I essentially need a list, and then a hidden: prop
-// cards come in as an object with various props, I should
-// be able to add a .isHidden prop pretty easily.
-// I can also just only show cards that are at index % 4 == 0
+// structure for player and enemy cards
+// its all kept on the endpoint, so this just
+// basically just points to 'piles' on the backend
 const pCards = {
   hand: "pPileA",
   discard: "pPileB",
@@ -44,10 +38,15 @@ function App() {
   const [field, setField] = useState([[], []]);
   const [hasWon, setHasWon] = useState("pending");
   const [error, setError] = useState("");
+
   async function setupNewGame() {
-    setError("");
     const deckId = await deal(playerCards.hand, enemyCards.hand);
     setDeckId(deckId);
+    setPlayerCards(pCards);
+    setEnemyCards(eCards);
+    setHasWon("pending");
+    setField([[], []]);
+    setError("");
   }
 
   async function drawCard(cards, count, setter) {
@@ -57,6 +56,8 @@ function App() {
       return [];
     }
     if (drawn.length < count) {
+      // we failed to get the cards, so time to
+      // swap piles, and check if won / lost
       if ((await shuffle(deckId, cards.discard)) === 0) {
         if (cards.hand[0] === "e") setHasWon("Won");
         if (cards.hand[0] === "p") setHasWon("Lost");
@@ -65,8 +66,9 @@ function App() {
       let dDiscard = await getCard(deckId, cards.discard, count - drawn.length);
       setter({ hand: cards.discard, discard: cards.hand });
       if (dDiscard === undefined || dDiscard.length + drawn.length < count) {
-        if (cards.hand[0] === "e") setHasWon("Won");
-        if (cards.hand[0] === "p") setHasWon("Lost");
+        // depends on the naming of piles
+        if (cards === enemyCards) setHasWon("Won");
+        if (cards === playerCards) setHasWon("Lost");
         return [];
       }
       return [...drawn, ...dDiscard];
@@ -90,7 +92,7 @@ function App() {
     ]);
   }
 
-  async function resolve() {
+  function resolve() {
     const l = field[0].length - 1;
     if (VAL[field[0][l].value] > VAL[field[1][l].value]) {
       claimCards(playerCards.discard, field);
@@ -112,7 +114,9 @@ function App() {
       </div>
     );
   }
-
+  // If I was going to continue this.
+  // The next step would be breaking
+  // this into components.
   return (
     <div className="App">
       <h1>Lets Play War!</h1>
@@ -138,11 +142,13 @@ function App() {
         </div>
       )}
       <br />
-      {deckId == "" && <button onClick={() => setupNewGame()}>New Game</button>}
-      {field[0].length === 0 && deckId != "" && (
+      {(deckId == "" || hasWon !== "pending") && (
+        <button onClick={() => setupNewGame()}>New Game</button>
+      )}
+      {field[0].length === 0 && deckId != "" && hasWon == "pending" && (
         <button onClick={() => war(1)}>war!</button>
       )}
-      {field[0].length !== 0 && (
+      {field[0].length !== 0 && deckId && hasWon == "pending" && (
         <button onClick={() => resolve()}>resolve</button>
       )}
     </div>
