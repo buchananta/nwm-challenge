@@ -66,7 +66,6 @@ function App() {
       let dDiscard = await getCard(deckId, cards.discard, count - drawn.length);
       setter({ hand: cards.discard, discard: cards.hand });
       if (dDiscard === undefined || dDiscard.length + drawn.length < count) {
-        // depends on the naming of piles
         if (cards === enemyCards) setHasWon("Won");
         if (cards === playerCards) setHasWon("Lost");
         return [];
