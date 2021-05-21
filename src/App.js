@@ -1,21 +1,7 @@
 import logo from "./logo.svg";
 import { useState } from "react";
 import "./App.css";
-import { getDeck, deal } from "./requests";
-
-// the server handles most of the cards
-// we just need an ID string to reference them
-// And _maybe_ a tmpDrawn [] to hold cards
-// inbetween the different piles?
-const defaultDeck = {
-  deckId: "",
-  // is a little wonky to keep all these constants in state
-  // but I already did it.
-  playerHand: "ph_pile",
-  playerDiscard: "pd_pile",
-  enemyHand: "eh_pile",
-  enemyDiscard: "ed_pile",
-};
+import { deal, getCard, shuffle, addCards } from "./requests";
 
 // The field is mostly going to be just a single card on each side
 // but it's also going to have tieBreakers
@@ -26,32 +12,79 @@ const defaultDeck = {
 // cards come in as an object with various props, I should
 // be able to add a .isHidden prop pretty easily.
 // I can also just only show cards that are at index % 4 == 0
-const defaultField = {
-  playerCards: [],
-  enemyCards: [],
+const pCards = {
+  hand: "pPileA",
+  discard: "pPileB",
+};
+const eCards = {
+  hand: "ePileA",
+  discard: "ePileB",
 };
 
 function App() {
-  const [deck, setDeck] = useState(defaultDeck);
-  const [field, setField] = useState(defaultField);
-  console.log("HANDS" + deck.playerHand + deck.enemyHand);
+  const [deckId, setDeckId] = useState("");
+  const [playerCards, setPlayerCards] = useState(pCards);
+  const [enemyCards, setEnemyCards] = useState(eCards);
+  const [field, setField] = useState([[], []]);
+  const [hasWon, setHasWon] = useState("pending");
 
-  async function newGame() {
-    const deckId = await getDeck();
-    console.log("DECK ID IS" + deckId);
-    setDeck({ ...defaultDeck, deckId });
+  async function setupNewGame() {
+    const deckId = await deal(playerCards.hand, enemyCards.hand);
+    setDeckId(deckId);
   }
 
-  async function setupNewGame(deck) {
-    const deckId = await deal(deck.playerHand, deck.enemyHand);
-    setDeck({ ...deck, deckId });
+  async function drawCard(cards, count, setter) {
+    const drawn = await getCard(deckId, cards.hand, count);
+    if (drawn === undefined || drawn.length < count) {
+      swapPiles(setter, cards);
+      if (drawn.length) {
+        return [...drawn, ...drawCard(cards, count - drawn.length, setter)];
+      } else return drawCard(cards, count, setter);
+    }
+    return drawn;
+  }
+
+  function claimCards(discard, field) {
+    const set1 = field[0].map((c) => c.code).join(",");
+    const set2 = field[1].map((c) => c.code).join(",");
+    addCards(deckId, discard, set1 + "," + set2);
+  }
+
+  async function war(count) {
+    const pCards = await drawCard(playerCards, count, setPlayerCards);
+    const eCards = await drawCard(enemyCards, count, setEnemyCards);
+    setField([...field[0], ...pCards], [...field[1], ...eCards]);
+  }
+
+  async function resolve() {
+    const l = field[0].length - 1;
+    if (field[0][l].value > field[1][l].value) {
+      claimCards(playerCards.discard, field);
+    } else if (field[0][l].value < field[1][l].value) {
+      claimCards(enemyCards.discard, field);
+    } else {
+      war(4);
+    }
+  }
+
+  async function swapPiles(setter, cards) {
+    setter({ ...cards, hand: cards.discard, discard: cards.hand });
+    const remaining = await shuffle(deckId, cards.hand);
+    if (remaining === 0) {
+      if (cards.hand[0] === "e") setHasWon("Won");
+      if (cards.hand[0] === "p") setHasWon("Lost");
+    }
+  }
+
+  if (hasWon !== "pending") {
+    return <h1>You {hasWon}!</h1>;
   }
 
   return (
     <div className="App">
       <h1>Lets Play War!</h1>
-      <p>{deck.deckId}</p>
-      <button onClick={() => setupNewGame(deck)}>New Game</button>
+      <p>{deckId}</p>
+      <button onClick={() => setupNewGame()}>New Game</button>
     </div>
   );
 }
